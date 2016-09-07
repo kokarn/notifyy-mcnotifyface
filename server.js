@@ -83,7 +83,7 @@ function buildMessage(request){
     return sendMessage;
 }
 
-app.all('/', (request, response, next) => {
+app.all('/out', (request, response, next) => {
     if(!request.query.message && !request.query.title){
         response.status(400).send();
         return false;
@@ -101,7 +101,7 @@ app.all('/', (request, response, next) => {
     next();
 });
 
-app.get('/', (request, response) => {
+app.get('/out', (request, response) => {
     let sendMessage = buildMessage(request);
     let messageSent = false;
 
@@ -128,7 +128,7 @@ app.get('/', (request, response) => {
     response.status(204).send();
 });
 
-app.post('/', (request, response) => {
+app.post('/out', (request, response) => {
     let sendMessage = buildMessage(request);
 
     if(request.body.code && request.body.code.length > 0){
