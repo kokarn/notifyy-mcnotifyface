@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 const Telegram = require('node-telegram-bot-api');
 const express = require('express');
@@ -9,38 +10,87 @@ const randomstring = require('randomstring');
 const app = express();
 app.use(bodyParser.json());
 
-let configDefaults = {
-    port: 4321
-};
+let users = {};
 
+const DEFAULT_PORT = 4321;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const CONFIG_PATH = path.join( __dirname + '/config.js' );
-
-let config = false;
+const DATABASE_USER = process.env.DATABASE_USER;
+const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD;
 
 let telegramClient = false;
 
-function setDefaults(){
-    config = {
-        port: configDefaults.port,
-        users: {}
-    };
+function storeUser( token, user ){
+    let data = {};
+    data.token = token;
+    for( let key in user ){
+        if( !{}.hasOwnProperty.call(user, key) ){
+            return false;
+        }
 
-    writeConfigFile({
-        sync: true
+        data[ key ] = user[ key ];
+    }
+
+    let postData = JSON.stringify( data );
+
+    let request = https.request({
+            hostname: 'kokarn.cloudant.com',
+            port: 443,
+            path: '/notifyy-users/',
+            method: 'POST',
+            auth: DATABASE_USER + ':' + DATABASE_PASSWORD,
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength( postData )
+            }
+        }, (response) => {
+            if(response.statusCode === 201){
+                console.log('User', user.username, 'added to storage.');
+            } else {
+                console.err('Failed to add user', user.username, ' to storage. Got status', response.statusCode);
+            }
+        }
+    )
+    .on('error', (error) => {
+        console.log(error.message);
     });
+
+    request.write( postData );
+    request.end();
 }
 
-function writeConfigFile(options){
-    if(options && options.sync){
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config));
-    } else {
-        fs.writeFile(CONFIG_PATH, JSON.stringify(config), (error) => {
-            if(error){
-                throw error;
-            }
-        });
-    }
+function loadUsers(){
+    let request = https.request({
+            hostname: 'kokarn.cloudant.com',
+            port: 443,
+            path: '/notifyy-users/_design/list/_view/all',
+            method: 'GET',
+            auth: DATABASE_USER + ':' + DATABASE_PASSWORD
+        }, (response) => {
+            let data = '';
+            response.setEncoding('utf8');
+
+            response.on('data', (chunk) => {
+                data = data + chunk;
+            });
+
+            response.on('end', () => {
+                let dataSet = JSON.parse( data );
+                for( let i = 0; i < dataSet.total_rows; i = i + 1 ){
+                    users[ dataSet.rows[ i ].value.token ] = {
+                        chatId: dataSet.rows[ i ].value.chatId,
+                        username: dataSet.rows[ i ].value.username
+                    };
+                }
+                console.log('User database load complete');
+            });
+
+        }
+    )
+    .on('error', (error) => {
+        console.log(error.message);
+    });
+
+    request.end();
 }
 
 function formatString(string){
@@ -110,12 +160,12 @@ app.get('/out', (request, response) => {
     }
 
     for(let i = 0; i < request.query.user.length; i = i + 1){
-        if(!config.users[ request.query.user[ i ] ]){
+        if(!users[ request.query.user[ i ] ]){
             continue;
         }
 
         messageSent = true;
-        telegramClient.sendMessage(config.users[ request.query.user[ i ] ].chatId, sendMessage, {
+        telegramClient.sendMessage(users[ request.query.user[ i ] ].chatId, sendMessage, {
             parse_mode: 'markdown'
         });
     }
@@ -142,12 +192,12 @@ app.post('/out', (request, response) => {
     }
 
     for(let i = 0; i < request.query.user.length; i = i + 1){
-        if(!config.users[ request.query.user[ i ] ]){
+        if(!users[ request.query.user[ i ] ]){
             continue;
         }
 
         messageSent = true;
-        telegramClient.sendMessage(config.users[ request.query.user[ i ] ].chatId, sendMessage, {
+        telegramClient.sendMessage(users[ request.query.user[ i ] ].chatId, sendMessage, {
             parse_mode: 'markdown'
         });
     }
@@ -160,59 +210,58 @@ app.post('/out', (request, response) => {
     response.status(204).send();
 });
 
-fs.access(CONFIG_PATH, fs.R_OK, (err) => {
-    if(err){
-        setDefaults();
-    } else {
-        try {
-            config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-        } catch (err){
-            console.error('Unable to parse config file "' + CONFIG_PATH + '". Please make sure it\'s valid.');
-            process.exit(1);
+if(!TELEGRAM_TOKEN){
+    console.error('Missing telegram token. Please add the environment variable TELEGRAM_TOKEN with a valid token.');
+    process.exit(1);
+}
+
+if(TELEGRAM_TOKEN.length < 45){
+    console.error('Invalid telegram token passed in with TELEGRAM_TOKEN.');
+    process.exit(1);
+}
+
+if(!DATABASE_USER){
+    console.error('Missing database user. Please add the environment variable DATABASE_USER with a valid string.');
+    process.exit(1);
+}
+
+if(!DATABASE_PASSWORD){
+    console.error('Missing database password. Please add the environment variable DATABASE_PASSWORD with a valid string.');
+    process.exit(1);
+}
+
+telegramClient = new Telegram(
+    TELEGRAM_TOKEN,
+    {
+        polling: true
+    }
+);
+
+loadUsers();
+
+telegramClient.on('message', (message) => {
+    var user = {
+        chatId: message.chat.id,
+        username: message.chat.username
+    };
+
+    for(let token in users){
+        if(users[ token ].username === message.chat.username){
+            telegramClient.sendMessage(message.chat.id, 'Welcome back! Your access token is \n' + token);
+            return false;
         }
     }
 
-    if(!TELEGRAM_TOKEN){
-        console.error('Missing telegram token. Please add the environment variable TELEGRAM_TOKEN with a valid token.');
-        process.exit(1);
-    }
+    console.log('Adding', message.chat.username, 'to users.');
 
-    if(TELEGRAM_TOKEN.length < 45){
-        console.error('Invalid telegram token passed in with TELEGRAM_TOKEN.');
-        process.exit(1);
-    }
+    let token = randomstring.generate();
+    users[ token ] = user;
 
-    telegramClient = new Telegram(
-        TELEGRAM_TOKEN,
-        {
-            polling: true
-        }
-    );
+    storeUser( token, user );
 
-    telegramClient.on('message', (message) => {
-        var user = {
-            chatId: message.chat.id,
-            username: message.chat.username
-        };
+    telegramClient.sendMessage(message.chat.id, 'Congrats! You are now added to the bot. Use the token \n' + token + '\n to authenticate.');
+});
 
-        for(let token in config.users){
-            if(config.users[ token ].username === message.chat.username){
-                telegramClient.sendMessage(message.chat.id, 'You are already in the list of watchers. Your access token is \n' + token);
-                return false;
-            }
-        }
-
-        console.log('Adding', message.chat.username, 'to users.');
-
-        let token = randomstring.generate();
-        config.users[ token ] = user;
-
-        writeConfigFile();
-
-        telegramClient.sendMessage(message.chat.id, 'Congrats! You are now added to the bot. Use the token \n' + token + '\n to authenticate.');
-    });
-
-    app.listen( process.env.PORT || config.port, () => {
-        console.log('Service up and running on port', process.env.PORT || config.port);
-    });
+app.listen( process.env.PORT || DEFAULT_PORT, () => {
+    console.log('Service up and running on port', process.env.PORT || DEFAULT_PORT);
 });
