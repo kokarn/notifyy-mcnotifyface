@@ -32,7 +32,7 @@ function setDefaults(){
 }
 
 function writeConfigFile(options){
-    if(options.sync){
+    if(options && options.sync){
         fs.writeFileSync(CONFIG_PATH, JSON.stringify(config));
     } else {
         fs.writeFile(CONFIG_PATH, JSON.stringify(config), (error) => {
