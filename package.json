@@ -14,8 +14,7 @@
     "body-parser": "^1.15.2",
     "express": "^4.13.4",
     "node-telegram-bot-api": "^0.23.3",
-    "randomstring": "^1.1.5",
-    "readline-sync": "^1.4.4"
+    "randomstring": "^1.1.5"
   },
   "license": "MIT"
 }

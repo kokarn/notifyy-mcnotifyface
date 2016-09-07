@@ -3,7 +3,6 @@ const fs = require('fs');
 
 const Telegram = require('node-telegram-bot-api');
 const express = require('express');
-const readlineSync = require('readline-sync');
 const bodyParser = require('body-parser');
 const randomstring = require('randomstring');
 
@@ -14,36 +13,34 @@ let configDefaults = {
     port: 4321
 };
 
-let CONFIG_PATH = path.join( __dirname + '/config.js' );
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const CONFIG_PATH = path.join( __dirname + '/config.js' );
+
 let config = false;
 
 let telegramClient = false;
 
 function setDefaults(){
-    let token = readlineSync.question('Telegram access token: ', {
-        limit: ( input ) => {
-            return input.length === 45;
-        },
-        limitMessage: 'Token has an invalid length. Please input a valid length token'
-    });
-
-    let port = readlineSync.questionInt('Port: (' + configDefaults.port + ')', {defaultInput: configDefaults.port});
-
     config = {
-        token: token,
-        port: port,
+        port: configDefaults.port,
         users: {}
     };
 
-    writeConfigFile();
+    writeConfigFile({
+        sync: true
+    });
 }
 
-function writeConfigFile(){
-    fs.writeFile(CONFIG_PATH, JSON.stringify(config), (error) => {
-        if(error){
-            throw error;
-        }
-    });
+function writeConfigFile(options){
+    if(options.sync){
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config));
+    } else {
+        fs.writeFile(CONFIG_PATH, JSON.stringify(config), (error) => {
+            if(error){
+                throw error;
+            }
+        });
+    }
 }
 
 function formatString(string){
@@ -175,18 +172,18 @@ fs.access(CONFIG_PATH, fs.R_OK, (err) => {
         }
     }
 
-    if(!config.token){
-        console.error('Missing telegram token in ' + CONFIG_PATH);
+    if(!TELEGRAM_TOKEN){
+        console.error('Missing telegram token. Please add the environment variable TELEGRAM_TOKEN with a valid token.');
         process.exit(1);
     }
 
-    if(config.token.length < 45){
-        console.error('Invalid telegram token in ' + CONFIG_PATH);
+    if(TELEGRAM_TOKEN.length < 45){
+        console.error('Invalid telegram token passed in with TELEGRAM_TOKEN.');
         process.exit(1);
     }
 
     telegramClient = new Telegram(
-        config.token,
+        TELEGRAM_TOKEN,
         {
             polling: true
         }
