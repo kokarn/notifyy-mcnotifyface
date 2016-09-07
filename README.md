@@ -1,6 +1,6 @@
 # Notifyy McNotifyFace
-
-A simple, stupid Node-based notify service for Telegram.
+> A simple, stupid Node-based notification service for Telegram.
+> https://github.com/kokarn/notifyy-mcnotifyface  
 
 Request an url and get a message on Telegram, it's that simple.
 
