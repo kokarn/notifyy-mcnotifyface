@@ -6,6 +6,7 @@ const Telegram = require('node-telegram-bot-api');
 const express = require('express');
 const bodyParser = require('body-parser');
 const randomstring = require('randomstring');
+const marked = require('marked');
 
 const app = express();
 app.use(bodyParser.json());
@@ -18,6 +19,33 @@ const DATABASE_USER = process.env.DATABASE_USER;
 const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD;
 
 let telegramClient = false;
+
+let readmeAsMarkup = marked(fs.readFileSync('./README.md', 'utf8'));
+
+let pageMarkup = `<!DOCTYP html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>
+        Notifyy McNotifyFace
+    </title>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/sindresorhus/github-markdown-css/gh-pages/github-markdown.css">
+    <style>
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+    </style>
+</head>
+<body>
+    <div class="markdown-body">
+        ${readmeAsMarkup}
+    </div>
+</body>
+</html>`;
 
 function storeUser( token, user ){
     let data = {};
@@ -132,6 +160,10 @@ function buildMessage(request){
 
     return sendMessage;
 }
+
+app.get('/', (request, response) => {
+    response.send(pageMarkup);
+});
 
 app.all('/out', (request, response, next) => {
     if(!request.query.message && !request.query.title){
