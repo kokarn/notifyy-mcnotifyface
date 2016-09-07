@@ -6,6 +6,9 @@
     "type": "git",
     "url": "https://github.com/kokarn/notifyy-mcnotifyface.git"
   },
+  "engines": {
+      "node": "^6.5.0"
+  },
   "main": "server.js",
   "dependencies": {
     "body-parser": "^1.15.2",
