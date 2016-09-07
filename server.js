@@ -212,7 +212,7 @@ fs.access(CONFIG_PATH, fs.R_OK, (err) => {
         telegramClient.sendMessage(message.chat.id, 'Congrats! You are now added to the bot. Use the token \n' + token + '\n to authenticate.');
     });
 
-    app.listen(config.port, () => {
-        console.log('Service up and running on port', config.port);
+    app.listen( process.env.PORT || config.port, () => {
+        console.log('Service up and running on port', process.env.PORT || config.port);
     });
 });
