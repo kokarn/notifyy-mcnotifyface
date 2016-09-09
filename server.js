@@ -21,9 +21,9 @@ const MESSAGE_CACHE_TIME = 3600;
 
 let telegramClient = false;
 
-let readmeAsMarkup = marked(fs.readFileSync('./README.md', 'utf8'));
 let sentMessages = {};
 
+let readmeAsHTML = marked(fs.readFileSync('./README.md', 'utf8'));
 
 let pageMarkup = `<!DOCTYP html>
 <html>
@@ -45,7 +45,7 @@ let pageMarkup = `<!DOCTYP html>
 </head>
 <body>
     <div class="markdown-body">
-        ${readmeAsMarkup}
+        ${readmeAsHTML}
     </div>
 </body>
 </html>`;
