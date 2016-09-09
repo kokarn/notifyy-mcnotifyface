@@ -17,6 +17,7 @@ const DEFAULT_PORT = 4321;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const DATABASE_USER = process.env.DATABASE_USER;
 const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD;
+const MESSAGE_CACHE_TIME = 3600;
 
 let telegramClient = false;
 
@@ -173,8 +174,20 @@ function sendMessage(chatId, message){
     for( let i = sentMessages[ chatId ].length - 1; i >= 0; i = i - 1 ){
         let messageSentDiff = process.hrtime( sentMessages[ chatId ][ i ].timestamp );
 
+        // Check if it's an old message
+        if( messageSentDiff[ 0 ] > MESSAGE_CACHE_TIME ){
+            // If it's an old message, remove it and continue
+            sentMessages[ chatId ].splice( i, 1 );
+            continue;
+        }
+
         // Check if we've already sent a message in the last second
         if( messageSentDiff[ 0 ] === 0 ){
+            return false;
+        }
+
+        // Check if we've already sent this message
+        if( sentMessages[ chatId ][ i ].message === message ){
             return false;
         }
     }
