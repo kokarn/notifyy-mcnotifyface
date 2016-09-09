@@ -9,6 +9,9 @@
   "engines": {
     "node": "^6.5.0"
   },
+  "scripts": {
+      "test": "eslint server.js"
+  },
   "main": "server.js",
   "dependencies": {
     "body-parser": "^1.15.2",
@@ -17,5 +20,12 @@
     "node-telegram-bot-api": "^0.23.3",
     "randomstring": "^1.1.5"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^3.4.0",
+    "eslint-config-kokarn": "git+https://github.com/kokarn/eslint-config-kokarn.git"
+  },
+  "eslintConfig": {
+    "extends": "kokarn/node"
+  }
 }
