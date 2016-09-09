@@ -21,6 +21,8 @@ const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD;
 let telegramClient = false;
 
 let readmeAsMarkup = marked(fs.readFileSync('./README.md', 'utf8'));
+let sentMessages = {};
+
 
 let pageMarkup = `<!DOCTYP html>
 <html>
@@ -161,6 +163,32 @@ function buildMessage(request){
     return sendMessage;
 }
 
+function sendMessage(chatId, message){
+    let timestamp = process.hrtime();
+
+    if(!sentMessages[ chatId ]){
+        sentMessages[ chatId ] = [];
+    }
+
+    for( let i = sentMessages[ chatId ].length - 1; i >= 0; i = i - 1 ){
+        let messageSentDiff = process.hrtime( sentMessages[ chatId ][ i ].timestamp );
+
+        // Check if we've already sent a message in the last second
+        if( messageSentDiff[ 0 ] === 0 ){
+            return false;
+        }
+    }
+
+    telegramClient.sendMessage(chatId, message, {
+        parse_mode: 'markdown'
+    });
+
+    sentMessages[ chatId ].push( {
+        message: message,
+        timestamp: timestamp
+    } );
+}
+
 app.get('/', (request, response) => {
     response.send(pageMarkup);
 });
@@ -184,11 +212,11 @@ app.all('/out', (request, response, next) => {
 });
 
 app.get('/out', (request, response) => {
-    let sendMessage = buildMessage(request);
+    let messageString = buildMessage(request);
     let messageSent = false;
 
     if(request.query.url && request.query.url.length > 0){
-        sendMessage = sendMessage + '\n' + request.query.url;
+        messageString = messageString + '\n' + request.query.url;
     }
 
     for(let i = 0; i < request.query.user.length; i = i + 1){
@@ -197,9 +225,8 @@ app.get('/out', (request, response) => {
         }
 
         messageSent = true;
-        telegramClient.sendMessage(users[ request.query.user[ i ] ].chatId, sendMessage, {
-            parse_mode: 'markdown'
-        });
+
+        sendMessage(users[ request.query.user[ i ] ].chatId, messageString);
     }
 
     if( !messageSent ){
@@ -211,16 +238,16 @@ app.get('/out', (request, response) => {
 });
 
 app.post('/out', (request, response) => {
-    let sendMessage = buildMessage(request);
+    let messageString = buildMessage(request);
 
     if(request.body.code && request.body.code.length > 0){
         let formattedCode = request.body.code.replace(/\\n/gim, '\n');
         formattedCode = formattedCode.replace(/\"/gim, '"');
-        sendMessage = sendMessage + '\n```\n' + formattedCode + '\n```';
+        messageString = messageString + '\n```\n' + formattedCode + '\n```';
     }
 
     if(request.query.url && request.query.url.length > 0){
-        sendMessage = sendMessage + '\n' + request.query.url;
+        messageString = messageString + '\n' + request.query.url;
     }
 
     for(let i = 0; i < request.query.user.length; i = i + 1){
@@ -229,9 +256,7 @@ app.post('/out', (request, response) => {
         }
 
         messageSent = true;
-        telegramClient.sendMessage(users[ request.query.user[ i ] ].chatId, sendMessage, {
-            parse_mode: 'markdown'
-        });
+        sendMessage(users[ request.query.user[ i ] ].chatId, messageString);
     }
 
     if(!messageSent){
