@@ -1,31 +1,36 @@
-const path = require('path');
-const fs = require('fs');
-const https = require('https');
+const fs = require( 'fs' );
+const https = require( 'https' );
 
-const Telegram = require('node-telegram-bot-api');
-const express = require('express');
-const bodyParser = require('body-parser');
-const randomstring = require('randomstring');
-const marked = require('marked');
+const Telegram = require( 'node-telegram-bot-api' );
+const express = require( 'express' );
+const bodyParser = require( 'body-parser' );
+const randomstring = require( 'randomstring' );
+const marked = require( 'marked' );
 
 const app = express();
-app.use(bodyParser.json());
-
-let users = {};
 
 const DEFAULT_PORT = 4321;
+const MESSAGE_CACHE_TIME = 3600;
+const TELEGRAM_TOKEN_LENGTH = 45;
+
+const SUCCESS_RESPONSE_CODE = 204;
+const ERROR_RESPONSE_CODE = 400;
+
+const DATABASE_SUCCESS_STATUS_CODE = 201;
+
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const DATABASE_USER = process.env.DATABASE_USER;
 const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD;
-const MESSAGE_CACHE_TIME = 3600;
 
 let telegramClient = false;
 
-let sentMessages = {};
+const sentMessages = {};
+const users = {};
 
-let readmeAsHTML = marked(fs.readFileSync('./README.md', 'utf8'));
+// eslint-disable-next-line no-sync
+const readmeAsHTML = marked( fs.readFileSync( './README.md', 'utf8' ) );
 
-let pageMarkup = `<!DOCTYP html>
+const pageMarkup = `<!DOCTYP html>
 <html>
 <head>
     <meta charset="utf-8"/>
@@ -45,293 +50,318 @@ let pageMarkup = `<!DOCTYP html>
 </head>
 <body>
     <div class="markdown-body">
-        ${readmeAsHTML}
+        ${ readmeAsHTML }
     </div>
 </body>
 </html>`;
 
-function storeUser( token, user ){
-    let data = {};
-    data.token = token;
-    for( let key in user ){
-        if( !{}.hasOwnProperty.call(user, key) ){
+app.use( bodyParser.json() );
+
+const storeUser = function storeUser ( token, user ) {
+    const userData = {};
+
+    userData.token = token;
+    for ( const key in user ) {
+        if ( !Reflect.apply( {}.hasOwnProperty, user, key ) ) {
             return false;
         }
 
-        data[ key ] = user[ key ];
+        userData[ key ] = user[ key ];
     }
 
-    let postData = JSON.stringify( data );
+    const postData = JSON.stringify( userData );
 
-    let request = https.request({
-            hostname: 'kokarn.cloudant.com',
-            port: 443,
-            path: '/notifyy-users/',
-            method: 'POST',
-            auth: DATABASE_USER + ':' + DATABASE_PASSWORD,
+    const request = https.request(
+        {
+            auth: `${ DATABASE_USER }:${ DATABASE_PASSWORD }`,
             headers: {
+                'Content-Length': Buffer.byteLength( postData ),
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength( postData )
-            }
-        }, (response) => {
-            if(response.statusCode === 201){
-                console.log('User', user.username, 'added to storage.');
+            },
+            hostname: 'kokarn.cloudant.com',
+            method: 'POST',
+            path: '/notifyy-users/',
+            port: 443,
+        },
+        ( response ) => {
+            if ( response.statusCode === DATABASE_SUCCESS_STATUS_CODE ) {
+                console.log( 'User', user.username, 'added to storage.' );
             } else {
-                console.err('Failed to add user', user.username, ' to storage. Got status', response.statusCode);
+                console.err( 'Failed to add user', user.username, ' to storage. Got status', response.statusCode );
             }
         }
     )
-    .on('error', (error) => {
-        console.log(error.message);
-    });
+    .on( 'error', ( error ) => {
+        console.log( error.message );
+    } );
 
     request.write( postData );
     request.end();
-}
 
-function loadUsers(){
-    let request = https.request({
+    return true;
+};
+
+const loadUsers = function loadUsers () {
+    const request = https.request(
+        {
+            auth: `${ DATABASE_USER }:${ DATABASE_PASSWORD }`,
             hostname: 'kokarn.cloudant.com',
-            port: 443,
-            path: '/notifyy-users/_design/list/_view/all',
             method: 'GET',
-            auth: DATABASE_USER + ':' + DATABASE_PASSWORD
-        }, (response) => {
-            let data = '';
-            response.setEncoding('utf8');
+            path: '/notifyy-users/_design/list/_view/all',
+            port: 443,
+        },
+        ( response ) => {
+            let userData = '';
 
-            response.on('data', (chunk) => {
-                data = data + chunk;
-            });
+            response.setEncoding( 'utf8' );
 
-            response.on('end', () => {
-                let dataSet = JSON.parse( data );
-                for( let i = 0; i < dataSet.total_rows; i = i + 1 ){
+            response.on( 'data', ( chunk ) => {
+                userData = userData + chunk;
+            } );
+
+            response.on( 'end', () => {
+                const dataSet = JSON.parse( userData );
+
+                for ( let i = 0; i < dataSet.total_rows; i = i + 1 ) {
                     users[ dataSet.rows[ i ].value.token ] = {
                         chatId: dataSet.rows[ i ].value.chatId,
-                        username: dataSet.rows[ i ].value.username
+                        username: dataSet.rows[ i ].value.username,
                     };
                 }
-                console.log('User database load complete');
-            });
-
+                console.log( 'User database load complete' );
+            } );
         }
     )
-    .on('error', (error) => {
-        console.log(error.message);
-    });
+    .on( 'error', ( error ) => {
+        console.log( error.message );
+    } );
 
     request.end();
-}
+};
 
-function formatString(string){
-    // string = string.replace(/</gim, '&lt;');
-    // string = string.replace(/>/gim, '&gt;');
-    // string = string.replace(/&/gim, '&amp;');
+const formatString = function formatString ( string ) {
+    // string = string.replace(/</gim, '&lt;' );
+    // string = string.replace(/>/gim, '&gt;' );
+    // string = string.replace(/&/gim, '&amp;' );
 
     return string;
-}
+};
 
-function buildMessage(request){
+const buildMessage = function buildMessage ( request ) {
     let title = false;
     let message = false;
     let sendMessage = '';
 
-    if(request.query.title && request.query.title.length > 0){
-        title = '*' + formatString(request.query.title) + '*';
+    if ( request.query.title && request.query.title.length > 0 ) {
+        title = `* ${ formatString( request.query.title ) } *`;
     }
 
-    if(request.query.message && request.query.message.length > 0){
-        message = formatString(request.query.message);
+    if ( request.query.message && request.query.message.length > 0 ) {
+        message = formatString( request.query.message );
     }
 
-    if(title){
-        if( sendMessage.length > 0 ){
-            sendMessage = sendMessage + '\n';
+    if ( title ) {
+        if ( sendMessage.length > 0 ) {
+            sendMessage = `${ sendMessage }\n`;
         }
 
         sendMessage = sendMessage + title;
     }
 
-    if(message){
-        if( sendMessage.length > 0 ){
-            sendMessage = sendMessage + '\n';
+    if ( message ) {
+        if ( sendMessage.length > 0 ) {
+            sendMessage = `${ sendMessage }\n`;
         }
 
         sendMessage = sendMessage + message;
     }
 
     return sendMessage;
-}
+};
 
-function sendMessage(chatId, message){
-    let timestamp = process.hrtime();
+const sendMessage = function sendMessage ( chatId, message ) {
+    const timestamp = process.hrtime();
 
-    if(!sentMessages[ chatId ]){
+    if ( !sentMessages[ chatId ] ) {
         sentMessages[ chatId ] = [];
     }
 
-    for( let i = sentMessages[ chatId ].length - 1; i >= 0; i = i - 1 ){
-        let messageSentDiff = process.hrtime( sentMessages[ chatId ][ i ].timestamp );
+    for ( let i = sentMessages[ chatId ].length - 1; i >= 0; i = i - 1 ) {
+        const messageSentDiff = process.hrtime( sentMessages[ chatId ][ i ].timestamp );
 
         // Check if it's an old message
-        if( messageSentDiff[ 0 ] > MESSAGE_CACHE_TIME ){
+        if ( messageSentDiff[ 0 ] > MESSAGE_CACHE_TIME ) {
             // If it's an old message, remove it and continue
             sentMessages[ chatId ].splice( i, 1 );
             continue;
         }
 
         // Check if we've already sent a message in the last second
-        if( messageSentDiff[ 0 ] === 0 ){
+        if ( messageSentDiff[ 0 ] === 0 ) {
             return false;
         }
 
         // Check if we've already sent this message
-        if( sentMessages[ chatId ][ i ].message === message ){
+        if ( sentMessages[ chatId ][ i ].message === message ) {
             return false;
         }
     }
 
-    telegramClient.sendMessage(chatId, message, {
-        parse_mode: 'markdown'
-    });
+    telegramClient.sendMessage( chatId, message, {
+        // eslint-disable-next-line camelcase
+        parse_mode: 'markdown',
+    } );
 
     sentMessages[ chatId ].push( {
         message: message,
-        timestamp: timestamp
+        timestamp: timestamp,
     } );
-}
 
-app.get('/', (request, response) => {
-    response.send(pageMarkup);
-});
+    return true;
+};
 
-app.all('/out', (request, response, next) => {
-    if(!request.query.message && !request.query.title){
-        response.status(400).send();
+app.get( '/', ( request, response ) => {
+    response.send( pageMarkup );
+} );
+
+app.all( '/out', ( request, response, next ) => {
+    if ( !request.query.message && !request.query.title ) {
+        response.status( ERROR_RESPONSE_CODE ).send();
+
         return false;
     }
 
-    if(!request.query.user){
-        response.status(400).send();
+    if ( !request.query.user ) {
+        response.status( ERROR_RESPONSE_CODE ).send();
+
         return false;
     }
 
-    if(typeof request.query.user === 'string'){
+    if ( typeof request.query.user === 'string' ) {
         request.query.user = [ request.query.user ];
     }
 
     next();
-});
 
-app.get('/out', (request, response) => {
-    let messageString = buildMessage(request);
+    return true;
+} );
+
+app.get( '/out', ( request, response ) => {
+    let messageString = buildMessage( request );
     let messageSent = false;
 
-    if(request.query.url && request.query.url.length > 0){
-        messageString = messageString + '\n' + request.query.url;
+    if ( request.query.url && request.query.url.length > 0 ) {
+        messageString = `${ messageString }\n${ request.query.url }`;
     }
 
-    for(let i = 0; i < request.query.user.length; i = i + 1){
-        if(!users[ request.query.user[ i ] ]){
+    for ( let i = 0; i < request.query.user.length; i = i + 1 ) {
+        if ( !users[ request.query.user[ i ] ] ) {
             continue;
         }
 
         messageSent = true;
 
-        sendMessage(users[ request.query.user[ i ] ].chatId, messageString);
+        sendMessage( users[ request.query.user[ i ] ].chatId, messageString );
     }
 
-    if( !messageSent ){
-        response.status(400).send();
+    if ( !messageSent ) {
+        response.status( ERROR_RESPONSE_CODE ).send();
+
         return false;
     }
 
-    response.status(204).send();
-});
+    response.status( SUCCESS_RESPONSE_CODE ).send();
 
-app.post('/out', (request, response) => {
-    let messageString = buildMessage(request);
+    return true;
+} );
 
-    if(request.body.code && request.body.code.length > 0){
-        let formattedCode = request.body.code.replace(/\\n/gim, '\n');
-        formattedCode = formattedCode.replace(/\"/gim, '"');
-        messageString = messageString + '\n```\n' + formattedCode + '\n```';
+app.post( '/out', ( request, response ) => {
+    let messageString = buildMessage( request );
+    let messageSent = false;
+
+    if ( request.body.code && request.body.code.length > 0 ) {
+        let formattedCode = request.body.code.replace( /\\n/gim, '\n' );
+
+        formattedCode = formattedCode.replace( /"/gim, '"' );
+        messageString = `${ messageString }\n\`\`\`\n${ formattedCode }\n\`\`\``;
     }
 
-    if(request.query.url && request.query.url.length > 0){
-        messageString = messageString + '\n' + request.query.url;
+    if ( request.query.url && request.query.url.length > 0 ) {
+        messageString = `${ messageString }\n${ request.query.url }`;
     }
 
-    for(let i = 0; i < request.query.user.length; i = i + 1){
-        if(!users[ request.query.user[ i ] ]){
+    for ( let i = 0; i < request.query.user.length; i = i + 1 ) {
+        if ( !users[ request.query.user[ i ] ] ) {
             continue;
         }
 
         messageSent = true;
-        sendMessage(users[ request.query.user[ i ] ].chatId, messageString);
+        sendMessage( users[ request.query.user[ i ] ].chatId, messageString );
     }
 
-    if(!messageSent){
-        response.status(400).send();
+    if ( !messageSent ) {
+        response.status( ERROR_RESPONSE_CODE ).send();
+
         return false;
     }
 
-    response.status(204).send();
-});
+    response.status( SUCCESS_RESPONSE_CODE ).send();
 
-if(!TELEGRAM_TOKEN){
-    console.error('Missing telegram token. Please add the environment variable TELEGRAM_TOKEN with a valid token.');
-    process.exit(1);
+    return true;
+} );
+
+if ( !TELEGRAM_TOKEN ) {
+    throw new Error( 'Missing telegram token. Please add the environment variable TELEGRAM_TOKEN with a valid token.' );
 }
 
-if(TELEGRAM_TOKEN.length < 45){
-    console.error('Invalid telegram token passed in with TELEGRAM_TOKEN.');
-    process.exit(1);
+if ( TELEGRAM_TOKEN.length < TELEGRAM_TOKEN_LENGTH ) {
+    throw new Error( 'Invalid telegram token passed in with TELEGRAM_TOKEN.' );
 }
 
-if(!DATABASE_USER){
-    console.error('Missing database user. Please add the environment variable DATABASE_USER with a valid string.');
-    process.exit(1);
+if ( !DATABASE_USER ) {
+    throw new Error( 'Missing database user. Please add the environment variable DATABASE_USER with a valid string.' );
 }
 
-if(!DATABASE_PASSWORD){
-    console.error('Missing database password. Please add the environment variable DATABASE_PASSWORD with a valid string.');
-    process.exit(1);
+if ( !DATABASE_PASSWORD ) {
+    throw new Error( 'Missing database password. Please add the environment variable DATABASE_PASSWORD with a valid string.' );
 }
 
 telegramClient = new Telegram(
     TELEGRAM_TOKEN,
     {
-        polling: true
+        polling: true,
     }
 );
 
 loadUsers();
 
-telegramClient.on('message', (message) => {
-    var user = {
+telegramClient.on( 'message', ( message ) => {
+    const user = {
         chatId: message.chat.id,
-        username: message.chat.username
+        username: message.chat.username,
     };
 
-    for(let token in users){
-        if(users[ token ].username === message.chat.username){
-            telegramClient.sendMessage(message.chat.id, 'Welcome back! Your access token is \n' + token);
+    for ( const userToken in users ) {
+        if ( users[ userToken ].username === message.chat.username ) {
+            telegramClient.sendMessage( message.chat.id, `Welcome back! Your access token is \n${ userToken }` );
+
             return false;
         }
     }
 
-    console.log('Adding', message.chat.username, 'to users.');
+    console.log( 'Adding', message.chat.username, 'to users.' );
 
-    let token = randomstring.generate();
+    const token = randomstring.generate();
+
     users[ token ] = user;
 
     storeUser( token, user );
 
-    telegramClient.sendMessage(message.chat.id, 'Congrats! You are now added to the bot. Use the token \n' + token + '\n to authenticate.');
-});
+    telegramClient.sendMessage( message.chat.id, `Congrats! You are now added to the bot. Use the token \n${ token }\n to authenticate.` );
+
+    return true;
+} );
 
 app.listen( process.env.PORT || DEFAULT_PORT, () => {
-    console.log('Service up and running on port', process.env.PORT || DEFAULT_PORT);
-});
+    console.log( 'Service up and running on port', process.env.PORT || DEFAULT_PORT );
+} );

@@ -26,6 +26,11 @@
     "eslint-config-kokarn": "git+https://github.com/kokarn/eslint-config-kokarn.git"
   },
   "eslintConfig": {
-    "extends": "kokarn/node"
+    "extends": "kokarn/node",
+    "rules": {
+      "no-process-env": [
+        "off"
+      ]
+    }
   }
 }
