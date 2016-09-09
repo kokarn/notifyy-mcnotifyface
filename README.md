@@ -10,7 +10,7 @@ To get yours, just talk to  [@MessageRelayBot](https://web.telegram.org/#/im?p=@
 It should respond with a token.
 
 ## Usage
-Send a request to [http://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&user=*TOKEN*](http://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&user=*TOKEN*) with *TOKEN* replaced with the token you got. If everything is working as intended you should get a message.
+Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&user=*TOKEN*](https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&user=*TOKEN*) with *TOKEN* replaced with the token you got. If everything is working as intended you should get a message.
 
 ### Available parameters
 
