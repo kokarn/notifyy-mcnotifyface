@@ -10,7 +10,7 @@ To get yours, just talk to  [@MessageRelayBot](https://web.telegram.org/#/im?p=@
 It should respond with a token.
 
 ## Usage
-Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&user=*TOKEN*](https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&user=*TOKEN*) with *TOKEN* replaced with the token you got. If everything is working as intended you should get a message.
+Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&users=*TOKEN*](https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&users=*TOKEN*) with *TOKEN* replaced with the token you got. If everything is working as intended you should get a message.
 
 ### Available parameters
 
@@ -18,14 +18,14 @@ Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20
 |---------|------------|---------------------|--------------------|
 | title   | GET & POST | YES (if no message) | string             |
 | message | GET & POST | YES (if no title)   | string             |
-| user    | GET & POST | YES                 | string             |
+| users   | GET & POST | YES                 | string             |
 | url     | GET & POST | NO                  | url-encoded string |
 | code    | POST       | NO                  | See special note   |
 
 
 ### Sending to multiple users
 To send to multiple users just add the key multiple times.
-E.g `?title=Hello&user=*TOKEN1*&user=*TOKEN2*`
+E.g `?title=Hello&users=*TOKEN1*&users=*TOKEN2*`
 
 ### Sending code
 If you want to post code you need to encode it correctly.  

@@ -240,6 +240,11 @@ app.all( '/out', ( request, response, next ) => {
         request.query.url = request.body.url;
     }
 
+    // If we got users in body but not in query, use that
+    if ( request.body.users && !request.query.users ) {
+        request.query.users = request.body.users;
+    }
+
     // If we got a user in body but not in query, use that
     if ( request.body.user && !request.query.user ) {
         request.query.user = request.body.user;
@@ -251,14 +256,23 @@ app.all( '/out', ( request, response, next ) => {
         return false;
     }
 
-    if ( !request.query.user ) {
+    if ( !request.query.users ) {
         response.status( ERROR_RESPONSE_CODE ).send();
 
         return false;
     }
 
-    if ( typeof request.query.user === 'string' ) {
-        request.query.user = [ request.query.user ];
+    if ( typeof request.query.users === 'string' ) {
+        request.query.users = [ request.query.users ];
+    }
+
+    // Fallback for when we provide the old "user" instead of "users"
+    if ( typeof request.query.user !== 'undefined' && typeof request.query.users === 'undefined' ){
+        if ( typeof request.query.user === 'string' ) {
+            request.query.users = [ request.query.user ];
+        } else {
+            request.query.users = request.query.user;
+        }
     }
 
     next();
@@ -274,14 +288,14 @@ app.get( '/out', ( request, response ) => {
         messageString = `${ messageString }\n${ request.query.url }`;
     }
 
-    for ( let i = 0; i < request.query.user.length; i = i + 1 ) {
-        if ( !users[ request.query.user[ i ] ] ) {
+    for ( let i = 0; i < request.query.users.length; i = i + 1 ) {
+        if ( !users[ request.query.users[ i ] ] ) {
             continue;
         }
 
         messageSent = true;
 
-        sendMessage( users[ request.query.user[ i ] ].chatId, messageString );
+        sendMessage( users[ request.query.users[ i ] ].chatId, messageString );
     }
 
     if ( !messageSent ) {
@@ -310,13 +324,13 @@ app.post( '/out', ( request, response ) => {
         messageString = `${ messageString }\n${ request.query.url }`;
     }
 
-    for ( let i = 0; i < request.query.user.length; i = i + 1 ) {
-        if ( !users[ request.query.user[ i ] ] ) {
+    for ( let i = 0; i < request.query.users.length; i = i + 1 ) {
+        if ( !users[ request.query.users[ i ] ] ) {
             continue;
         }
 
         messageSent = true;
-        sendMessage( users[ request.query.user[ i ] ].chatId, messageString );
+        sendMessage( users[ request.query.users[ i ] ].chatId, messageString );
     }
 
     if ( !messageSent ) {
