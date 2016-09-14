@@ -225,6 +225,26 @@ app.get( '/', ( request, response ) => {
 } );
 
 app.all( '/out', ( request, response, next ) => {
+    // If we got a message in body but not in query, use that
+    if ( request.body.message && !request.query.message ) {
+        request.query.message = request.body.message;
+    }
+
+    // If we got a title in body but not in query, use that
+    if ( request.body.title && !request.query.title ) {
+        request.query.title = request.body.title;
+    }
+
+    // If we got a url in body but not in query, use that
+    if ( request.body.url && !request.query.url ) {
+        request.query.url = request.body.url;
+    }
+
+    // If we got a user in body but not in query, use that
+    if ( request.body.user && !request.query.user ) {
+        request.query.user = request.body.user;
+    }
+
     if ( !request.query.message && !request.query.title ) {
         response.status( ERROR_RESPONSE_CODE ).send();
 
