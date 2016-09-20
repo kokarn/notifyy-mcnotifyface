@@ -250,6 +250,15 @@ app.all( '/out', ( request, response, next ) => {
         request.query.user = request.body.user;
     }
 
+    // Fallback for when we provide the old "user" instead of "users"
+    if ( typeof request.query.user !== 'undefined' && typeof request.query.users === 'undefined' ){
+        if ( typeof request.query.user === 'string' ) {
+            request.query.users = [ request.query.user ];
+        } else {
+            request.query.users = request.query.user;
+        }
+    }
+
     if ( !request.query.message && !request.query.title ) {
         response.status( ERROR_RESPONSE_CODE ).send();
 
@@ -264,15 +273,6 @@ app.all( '/out', ( request, response, next ) => {
 
     if ( typeof request.query.users === 'string' ) {
         request.query.users = [ request.query.users ];
-    }
-
-    // Fallback for when we provide the old "user" instead of "users"
-    if ( typeof request.query.user !== 'undefined' && typeof request.query.users === 'undefined' ){
-        if ( typeof request.query.user === 'string' ) {
-            request.query.users = [ request.query.user ];
-        } else {
-            request.query.users = request.query.user;
-        }
     }
 
     next();
