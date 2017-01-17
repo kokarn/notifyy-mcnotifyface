@@ -34,6 +34,17 @@ If you want to post code you need to encode it correctly.
 
 After that you send it as a POST request with a `application/json` body with a single property, code.
 
+### Message formatting
+Every message is sent in "markdown_mode".
+This means that you can use the [basic markdown functionaltiy of telegram](https://core.telegram.org/bots/api#formatting-options) to format your messages.
+<pre>
+*bold text*
+_italic text_
+[text](http://www.example.com/)
+`inline fixed-width code`
+```text
+pre-formatted fixed-width code block
+```</pre>
 
 ## Response codes
 
