@@ -21,8 +21,9 @@ const ERROR_RESPONSE_CODE = 400;
 const DATABASE_SUCCESS_STATUS_CODE = 201;
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const DATABASE_USER = process.env.DATABASE_USER;
-const DATABASE_PASSWORD = process.env.DATABASE_PASSWORD;
+const DATA_STORAGE_ID = process.env.DATA_STORAGE_ID;
+const DATA_STORAGE_KEY = process.env.DATA_STORAGE_KEY;
+const DATA_STORAGE_HOSTNAME = 'api.jsonbin.io';
 
 let telegramClient = false;
 
@@ -75,14 +76,13 @@ const storeUser = function storeUser ( token, user ) {
 
     const request = https.request(
         {
-            auth: `${ DATABASE_USER }:${ DATABASE_PASSWORD }`,
             headers: {
                 'Content-Length': Buffer.byteLength( postData ),
                 'Content-Type': 'application/json',
             },
-            hostname: 'kokarn.cloudant.com',
-            method: 'POST',
-            path: '/notifyy-users/',
+            hostname: DATA_STORAGE_HOSTNAME,
+            method: 'PUT',
+            path: `/b/${ DATA_STORAGE_ID }`,
             port: 443,
         },
         ( response ) => {
@@ -106,10 +106,12 @@ const storeUser = function storeUser ( token, user ) {
 const loadUsers = function loadUsers () {
     const request = https.request(
         {
-            auth: `${ DATABASE_USER }:${ DATABASE_PASSWORD }`,
-            hostname: 'kokarn.cloudant.com',
+            hostname: DATA_STORAGE_HOSTNAME,
             method: 'GET',
-            path: '/notifyy-users/_design/list/_view/all',
+            headers: {
+                'secret-key': DATA_STORAGE_KEY
+            },
+            path: `/b/${ DATA_STORAGE_ID }`,
             port: 443,
         },
         ( response ) => {
@@ -124,12 +126,13 @@ const loadUsers = function loadUsers () {
             response.on( 'end', () => {
                 const dataSet = JSON.parse( userData );
 
-                for ( let i = 0; i < dataSet.total_rows; i = i + 1 ) {
-                    users[ dataSet.rows[ i ].value.token ] = {
-                        chatId: dataSet.rows[ i ].value.chatId,
-                        username: dataSet.rows[ i ].value.username,
+                for ( const userData of dataSet ) {
+                    users[ userData.token ] = {
+                        chatId: userData.chatId,
+                        username: userData.username,
                     };
                 }
+
                 console.log( 'User database load complete' );
             } );
         }
@@ -354,12 +357,12 @@ if ( TELEGRAM_TOKEN.length < TELEGRAM_TOKEN_LENGTH ) {
     throw new Error( 'Invalid telegram token passed in with TELEGRAM_TOKEN.' );
 }
 
-if ( !DATABASE_USER ) {
-    throw new Error( 'Missing database user. Please add the environment variable DATABASE_USER with a valid string.' );
+if ( !DATA_STORAGE_ID ) {
+    throw new Error( 'Missing data id. Please add the environment variable DATA_STORAGE_ID with a valid string.' );
 }
 
-if ( !DATABASE_PASSWORD ) {
-    throw new Error( 'Missing database password. Please add the environment variable DATABASE_PASSWORD with a valid string.' );
+if ( !DATA_STORAGE_KEY ) {
+    throw new Error( 'Missing data secret key. Please add the environment variable DATA_STORAGE_KEY with a valid string.' );
 }
 
 telegramClient = new Telegram(
