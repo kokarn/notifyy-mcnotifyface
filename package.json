@@ -10,7 +10,8 @@
     "node": "^6.5.0"
   },
   "scripts": {
-      "test": "eslint server.js"
+    "test": "eslint server.js",
+    "pretest": "eslint *.js"
   },
   "main": "server.js",
   "dependencies": {
@@ -22,6 +23,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "dotenv": "^5.0.1",
     "eslint": "^3.4.0",
     "eslint-config-kokarn": "git+https://github.com/kokarn/eslint-config-kokarn.git"
   },
