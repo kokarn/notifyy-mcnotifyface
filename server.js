@@ -18,7 +18,7 @@ const TELEGRAM_TOKEN_LENGTH = 45;
 const SUCCESS_RESPONSE_CODE = 204;
 const ERROR_RESPONSE_CODE = 400;
 
-const DATABASE_SUCCESS_STATUS_CODE = 201;
+const DATABASE_SUCCESS_STATUS_CODE = 200;
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const DATA_STORAGE_ID = process.env.DATA_STORAGE_ID;
@@ -79,6 +79,7 @@ const storeUser = function storeUser ( token, user ) {
             headers: {
                 'Content-Length': Buffer.byteLength( postData ),
                 'Content-Type': 'application/json',
+                'secret-key': DATA_STORAGE_KEY
             },
             hostname: DATA_STORAGE_HOSTNAME,
             method: 'PUT',
