@@ -213,17 +213,16 @@ const sendMessage = function sendMessage ( chatId, message ) {
         }
     }
 
-    telegramClient.sendMessage( chatId, message, {
+    return telegramClient.sendMessage( chatId, message, {
         // eslint-disable-next-line camelcase
         parse_mode: 'markdown',
-    } );
-
-    sentMessages[ chatId ].push( {
-        message: message,
-        timestamp: timestamp,
-    } );
-
-    return true;
+    } )
+        .then( () => {
+            sentMessages[ chatId ].push( {
+                message: message,
+                timestamp: timestamp,
+            } );
+        } );
 };
 
 app.get( '/', ( request, response ) => {
@@ -288,7 +287,7 @@ app.all( '/out', ( request, response, next ) => {
 
 app.get( '/out', ( request, response ) => {
     let messageString = buildMessage( request );
-    let messageSent = false;
+    let messagePromises = [];
 
     if ( request.query.url && request.query.url.length > 0 ) {
         messageString = `${ messageString }\n${ request.query.url }`;
@@ -299,25 +298,21 @@ app.get( '/out', ( request, response ) => {
             continue;
         }
 
-        messageSent = true;
-
-        sendMessage( users[ request.query.users[ i ] ].chatId, messageString );
+        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageString ) );
     }
 
-    if ( !messageSent ) {
-        response.status( ERROR_RESPONSE_CODE ).send();
-
-        return false;
-    }
-
-    response.status( SUCCESS_RESPONSE_CODE ).send();
-
-    return true;
+    Promise.all( messagePromises )
+        .then( () => {
+            response.status( SUCCESS_RESPONSE_CODE ).send();
+        } )
+        .catch( ( sendError ) => {
+            response.status( ERROR_RESPONSE_CODE ).send( sendError.response.body.description );
+        } );
 } );
 
 app.post( '/out', ( request, response ) => {
     let messageString = buildMessage( request );
-    let messageSent = false;
+    let messagePromises = [];
 
     if ( request.body.code && request.body.code.length > 0 ) {
         let formattedCode = request.body.code.replace( /\\n/gim, '\n' );
@@ -335,19 +330,16 @@ app.post( '/out', ( request, response ) => {
             continue;
         }
 
-        messageSent = true;
-        sendMessage( users[ request.query.users[ i ] ].chatId, messageString );
+        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageString ) );
     }
 
-    if ( !messageSent ) {
-        response.status( ERROR_RESPONSE_CODE ).send();
-
-        return false;
-    }
-
-    response.status( SUCCESS_RESPONSE_CODE ).send();
-
-    return true;
+    Promise.all( messagePromises )
+        .then( () => {
+            response.status( SUCCESS_RESPONSE_CODE ).send();
+        } )
+        .catch( ( sendError ) => {
+            response.status( ERROR_RESPONSE_CODE ).send( sendError.response.body.description );
+        } );
 } );
 
 if ( !TELEGRAM_TOKEN ) {
