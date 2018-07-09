@@ -19,7 +19,7 @@
     "dotenv": "^5.0.1",
     "express": "^4.13.4",
     "marked": "^0.3.6",
-    "node-telegram-bot-api": "^0.23.3",
+    "node-telegram-bot-api": "^0.30.0",
     "randomstring": "^1.1.5"
   },
   "license": "MIT",
