@@ -156,7 +156,12 @@ const formatString = function formatString ( string ) {
 const buildMessage = function buildMessage ( request ) {
     let title = false;
     let message = false;
-    let sendMessage = '';
+    const messageObject = {
+        string: '',
+        options: {
+            disable_notification: false,
+        },
+    };
 
     if ( request.query.title && request.query.title.length > 0 ) {
         title = `* ${ formatString( request.query.title ) } *`;
@@ -167,29 +172,39 @@ const buildMessage = function buildMessage ( request ) {
     }
 
     if ( title ) {
-        if ( sendMessage.length > 0 ) {
-            sendMessage = `${ sendMessage }\n`;
+        if ( messageObject.string.length > 0 ) {
+            messageObject.string = `${ messageObject.string }\n`;
         }
 
-        sendMessage = sendMessage + title;
+        messageObject.string = `${ messageObject.string }${ title }`;
     }
 
     if ( message ) {
-        if ( sendMessage.length > 0 ) {
-            sendMessage = `${ sendMessage }\n`;
+        if ( messageObject.string.length > 0 ) {
+            messageObject.string = `${ messageObject.string }\n`;
         }
 
-        sendMessage = sendMessage + message;
+        messageObject.string = `${ messageObject.string }${ message }`;
     }
 
-    return sendMessage;
+    if ( request.query.notification ) {
+        messageObject.options.disable_notification = !(request.query.notification == 'true');
+    }
+
+    return messageObject;
 };
 
-const sendMessage = function sendMessage ( chatId, message ) {
+const sendMessage = function sendMessage ( chatId, messageData ) {
     const timestamp = process.hrtime();
 
     if ( !sentMessages[ chatId ] ) {
         sentMessages[ chatId ] = [];
+    }
+
+    if ( typeof messageData === 'string' ) {
+        messageData = {
+            string: messageData,
+        };
     }
 
     for ( let i = sentMessages[ chatId ].length - 1; i >= 0; i = i - 1 ) {
@@ -208,18 +223,19 @@ const sendMessage = function sendMessage ( chatId, message ) {
         }
 
         // Check if we've already sent this message
-        if ( sentMessages[ chatId ][ i ].message === message ) {
+        if ( sentMessages[ chatId ][ i ].message === messageData.string ) {
             return false;
         }
     }
 
-    return telegramClient.sendMessage( chatId, message, {
+    return telegramClient.sendMessage( chatId, messageData.string, {
         // eslint-disable-next-line camelcase
         parse_mode: 'markdown',
+        ...messageData.options,
     } )
         .then( () => {
             sentMessages[ chatId ].push( {
-                message: message,
+                message: messageData.string,
                 timestamp: timestamp,
             } );
         } );
@@ -286,11 +302,11 @@ app.all( '/out', ( request, response, next ) => {
 } );
 
 app.get( '/out', ( request, response ) => {
-    let messageString = buildMessage( request );
+    const messageData = buildMessage( request );
     let messagePromises = [];
 
     if ( request.query.url && request.query.url.length > 0 ) {
-        messageString = `${ messageString }\n${ request.query.url }`;
+        messageData.string = `${ messageData.string }\n${ request.query.url }`;
     }
 
     for ( let i = 0; i < request.query.users.length; i = i + 1 ) {
@@ -298,7 +314,7 @@ app.get( '/out', ( request, response ) => {
             continue;
         }
 
-        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageString ) );
+        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageData ) );
     }
 
     Promise.all( messagePromises )
@@ -311,18 +327,18 @@ app.get( '/out', ( request, response ) => {
 } );
 
 app.post( '/out', ( request, response ) => {
-    let messageString = buildMessage( request );
+    const messageData = buildMessage( request );
     let messagePromises = [];
 
     if ( request.body.code && request.body.code.length > 0 ) {
         let formattedCode = request.body.code.replace( /\\n/gim, '\n' );
 
         formattedCode = formattedCode.replace( /"/gim, '"' );
-        messageString = `${ messageString }\n\`\`\`\n${ formattedCode }\n\`\`\``;
+        messageData.string = `${ messageData.string }\n\`\`\`\n${ formattedCode }\n\`\`\``;
     }
 
     if ( request.query.url && request.query.url.length > 0 ) {
-        messageString = `${ messageString }\n${ request.query.url }`;
+        messageData.string = `${ messageData.string }\n${ request.query.url }`;
     }
 
     for ( let i = 0; i < request.query.users.length; i = i + 1 ) {
@@ -330,7 +346,7 @@ app.post( '/out', ( request, response ) => {
             continue;
         }
 
-        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageString ) );
+        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageData ) );
     }
 
     Promise.all( messagePromises )

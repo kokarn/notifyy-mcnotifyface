@@ -14,13 +14,14 @@ Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20
 
 ### Available parameters
 
-| Key     | Method     | Required            | Type               |
-|---------|------------|---------------------|--------------------|
-| title   | GET & POST | YES (if no message) | string             |
-| message | GET & POST | YES (if no title)   | string             |
-| users   | GET & POST | YES                 | string             |
-| url     | GET & POST | NO                  | url-encoded string |
-| code    | POST       | NO                  | See special note   |
+| Key            | Method     | Required            | Type               |
+|----------------|------------|---------------------|--------------------|
+| title          | GET & POST | YES (if no message) | string             |
+| message        | GET & POST | YES (if no title)   | string             |
+| users          | GET & POST | YES                 | string             |
+| url            | GET & POST | NO                  | url-encoded string |
+| code           | POST       | NO                  | See special note   |
+| notification   | GET & POST | NO                  | boolean            |
 
 
 ### Sending to multiple users
