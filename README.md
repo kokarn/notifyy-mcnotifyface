@@ -12,6 +12,11 @@ It should respond with a token.
 ## Usage
 Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&users=*TOKEN*](https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20World&users=*TOKEN*) with *TOKEN* replaced with the token you got. If everything is working as intended you should get a message.
 
+There's also a [node module](https://www.npmjs.com/package/node-notifyy).
+
+### Limitations
+To prevent spamming users, a unique message can only be sent once every hour.
+
 ### Available parameters
 
 | Key            | Method     | Required            | Type               |
