@@ -7,7 +7,7 @@
     "url": "https://github.com/kokarn/notifyy-mcnotifyface.git"
   },
   "engines": {
-    "node": "^8.11.3"
+    "node": "^12.11.3"
   },
   "scripts": {
     "test": "eslint server.js",
