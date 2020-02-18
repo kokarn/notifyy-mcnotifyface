@@ -15,7 +15,8 @@ Send a request to [https://notifyy-mcnotifyface.herokuapp.com/out?title=Hello%20
 There's also a [node module](https://www.npmjs.com/package/node-notifyy).
 
 ### Limitations
-To prevent spamming users, a unique message can only be sent once every hour.
+To prevent spamming users, a unique message can only be sent once every hour.  
+This behaviour can be disabled by passing `cache` as false
 
 ### Available parameters
 
@@ -27,7 +28,7 @@ To prevent spamming users, a unique message can only be sent once every hour.
 | url            | GET & POST | NO                  | url-encoded string |
 | code           | POST       | NO                  | See special note   |
 | notification   | GET & POST | NO                  | boolean            |
-
+| cache          | GET & POST | NO                  | boolean            |
 
 ### Sending to multiple users
 To send to multiple users just add the key multiple times.

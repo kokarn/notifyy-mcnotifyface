@@ -194,7 +194,7 @@ const buildMessage = function buildMessage ( request ) {
     return messageObject;
 };
 
-const sendMessage = function sendMessage ( chatId, messageData ) {
+const sendMessage = function sendMessage ( chatId, messageData, cache = true ) {
     const timestamp = process.hrtime();
 
     if ( !sentMessages[ chatId ] ) {
@@ -223,7 +223,7 @@ const sendMessage = function sendMessage ( chatId, messageData ) {
         }
 
         // Check if we've already sent this message
-        if ( sentMessages[ chatId ][ i ].message === messageData.string ) {
+        if ( cache === true && sentMessages[ chatId ][ i ].message === messageData.string ) {
             return false;
         }
     }
@@ -271,6 +271,11 @@ app.all( '/out', ( request, response, next ) => {
         request.query.user = request.body.user;
     }
 
+    // If we got a cache in body but not in query, use that
+    if ( request.body.cache && !request.query.cache ) {
+        request.query.cache = request.body.cache;
+    }
+
     // Fallback for when we provide the old "user" instead of "users"
     if ( typeof request.query.user !== 'undefined' && typeof request.query.users === 'undefined' ){
         if ( typeof request.query.user === 'string' ) {
@@ -314,7 +319,7 @@ app.get( '/out', ( request, response ) => {
             continue;
         }
 
-        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageData ) );
+        messagePromises.push( sendMessage( users[ request.query.users[ i ] ].chatId, messageData, request.query.cache ) );
     }
 
     Promise.all( messagePromises )
